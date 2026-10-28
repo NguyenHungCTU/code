@@ -1,0 +1,66 @@
+
+# ===================================================
+# Clock Tree Structure Debug - Innovus PostRoute
+# ===================================================
+
+set OUT_DIR ./clock_debug
+file mkdir $OUT_DIR
+
+# 1. Get available clock trees
+set trees [get_ccopt_clock_trees]
+puts "Clock trees: $trees"
+
+set fp [open "$OUT_DIR/clock_list.txt" w]
+puts $fp $trees
+close $fp
+
+# 2. Global statistics
+report_ccopt_clock_trees \
+    -file "$OUT_DIR/clock_trees.rpt"
+
+report_ccopt_skew_groups \
+    -file "$OUT_DIR/skew_groups.rpt"
+
+report_ccopt_pin_insertion_delays \
+    -file "$OUT_DIR/pin_delays.rpt"
+
+# 3. Structure by clock tree
+foreach clk $trees {
+
+    puts "Processing clock tree: $clk"
+
+    set name [string map {
+        / _ : _ { } _
+    } $clk]
+
+    # Compact topology
+    if {[catch {
+        report_ccopt_clock_tree_structure \
+            -clock_trees [list $clk] \
+            "$OUT_DIR/${name}_structure.rpt"
+    } err]} {
+        puts "WARNING: $clk structure: $err"
+    }
+
+    # Topology with physical/timing attributes
+    if {[catch {
+        report_ccopt_clock_tree_structure \
+            -clock_trees [list $clk] \
+            -update_timing \
+            "$OUT_DIR/${name}_timing.rpt"
+    } err]} {
+        puts "WARNING: $clk timing: $err"
+    }
+
+    # Complete sink listing
+    if {[catch {
+        report_ccopt_clock_tree_structure \
+            -clock_trees [list $clk] \
+            -show_sinks \
+            "$OUT_DIR/${name}_sinks.rpt"
+    } err]} {
+        puts "WARNING: $clk sinks: $err"
+    }
+}
+
+puts "Clock debug reports saved to $OUT_DIR"
